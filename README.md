@@ -1,5 +1,5 @@
 # binary-cookie-extractor
-A Go based program that decodes Safari/iOS/iPadOS binary cookie files
+A Go based program that extracts/decodes Safari/iOS/iPadOS binary cookie files
 
 Requires Go and runs on macOS, Windows, and Linux. Created by me, KittyNighthawk (https://github.com/KittyNighthawk)
 
