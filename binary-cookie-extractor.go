@@ -326,7 +326,7 @@ func parseComLineFlags() {
 
 	if *format != "table" && *format != "list" {
 		if *debug {
-			fmt.Printf("[DEBUG] *format does not equal table, list, or json\n")
+			fmt.Printf("[DEBUG] *format does not equal table or list\n")
 			fmt.Printf("[DEBUG] *format: %s\n", *format)
 		}
 		printUsageInstructions()
@@ -337,7 +337,7 @@ func parseComLineFlags() {
 func printUsageInstructions() {
 	fmt.Println(`BinaryCookieExtractor (v0.9) - Safari/iOS/iPadOS Binary Cookie Decoder - @KittyNighthawk (2020)
 
-Usage: $ ./binary-cookie-extractor -i <BINARY-COOKIE-FILE> [-f table|list|json] [-d]
+Usage: $ ./binary-cookie-extractor -i <BINARY-COOKIE-FILE> [-f table|list] [-d]
 Example: $ ./binary-cookie-extractor -i Cookies.binarycookies
 
 For help, enter: $ ./binary-cookie-decode -h`)
