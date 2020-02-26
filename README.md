@@ -19,7 +19,8 @@ This will download the program from GitHub, build it, and install it.
 To make sure you can run Go binaries from the command line, ensure that the $GOPATH is in your %PATH environment variable. For example:
 
 ```
-$ export PATH=$PATH:/usr/local/go/bin
+macOS: $ export PATH=$PATH:/usr/local/go/bin
+Linux: $ export PATH=$PATH:/home/username/go/bin
 ```
 
 Further details on Go installation and setup can be found at https://golang.org/doc/install
