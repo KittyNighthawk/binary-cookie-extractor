@@ -40,7 +40,7 @@ $ ./binary-cookie-extractor -h
 
 Below is a list of all current options:
 - ```-i``` - Provide the path to the binary cookies file
-- ```-f``` - Specify the format. Current options are table (default) and list
+- ```-f``` - Specify the format. Current options are `table` (default), `list`, `json`, `csv`, and `xml`
 - ```-d``` - Enabled debugging output
 - ```-v``` - Print out the version information
 
