@@ -6,19 +6,24 @@
   program will decode them and print them out.
 
   Usage:
-  $ ./binary-cookie-extractor -i <PATH-TO-COOKIE-FILE> [-v] [-d] [-f table|list]
+  $ ./binary-cookie-extractor -i <BINARY-COOKIE-FILE> [-f table|list|json|csv|xml] [-d]
 
   Examples:
   $ ./binary-cookie-extractor -i Cookie.binarycookies
   $ ./binary-cookie-extractor -i Cookie.binarycookies -f list
+  $ ./binary-cookie-extractor -i Cookie.binarycookies -f json
+  $ ./binary-cookie-extractor -i Cookie.binarycookies -f xml
 
-  Created by @KittyNighthawk (2020) (https://github.com/KittyNighthawk)
+  Created by @KittyNighthawk (2021) (https://github.com/KittyNighthawk)
 */
 
 package main
 
 import (
+	"encoding/csv"
 	"encoding/hex"
+	"encoding/json"
+	"encoding/xml"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -44,21 +49,21 @@ type page struct {
 
 type cookie struct {
 	rawBytes     []byte
-	size         uint64
-	name         string
-	value        string
-	domain       string
-	path         string
-	flags        string
-	expires      time.Time
-	lastAccessed time.Time
+	Size         uint64 `json:"size" xml:"Size"`
+	Name         string `json:"name" xml:"Name"`
+	Value        string `json:"value" xml:"Value"`
+	Domain       string `json:"domain" xml:"Domain"`
+	Path         string `json:"path" xml:"Path"`
+	Flags        string `json:"flags" xml:"Flags"`
+	Expires      string `json:"expires" xml:"Expires"`
+	LastAccessed string `json:"lastAccessed" xml:"LastAccessed"`
 }
 
 // Command line flag variables
 var file = flag.String("i", "", "path to the binary cookies file")
 var version = flag.Bool("v", false, "display version number")
 var debug = flag.Bool("d", false, "display debugging information")
-var format = flag.String("f", "table", "format of output [table|list]")
+var format = flag.String("f", "table", "format of output [table|list|json|csv|xml]")
 
 func main() {
 	parseComLineFlags()
@@ -75,49 +80,112 @@ func main() {
 	// extractCookiesFromPages modifies the objects the reference passes to, so it doesn't need to return anything
 	extractCookiesFromPages(pages)
 
+	// This variable will hold all the decoded cookies for later use
+	var allCookies []cookie
+
 	// At this point, the pages have been extracted, and the cookies extracted from the pages, so last step is to just
 	// decode the cookies in each page
-	decodeCookies(pages)
+	decodeCookies(pages, &allCookies)
 
-	// Now print out the cookies!
-	printDecodedCookies(pages)
+	// Based on the format, output the cookie data
+	switch *format {
+	case "table":
+		outputAsTable(allCookies)
+	case "list":
+		outputAsList(allCookies)
+	case "json":
+		outputAsJSON(allCookies)
+	case "csv":
+		outputAsCSV(allCookies)
+	case "xml":
+		outputAsXML(allCookies)
+	default:
+		fmt.Printf("This should never run\n")
+	}
 }
 
-// This function prints out decoded cookies
-func printDecodedCookies(pages pages) {
-	// First, loop through the pages
-	cookieCount := 1
-	for i := 0; i < len(pages.pages); i++ {
-		// And now loop through the cookies in those pages
-		for j := 0; j < len(pages.pages[i].cookies); j++ {
-			switch *format {
-			case "table":
-				fmt.Printf("Cookie %d: %s=", cookieCount, pages.pages[i].cookies[j].name)
-				fmt.Printf("%s; ", pages.pages[i].cookies[j].value)
-				fmt.Printf("Domain: %s; ", pages.pages[i].cookies[j].domain)
-				fmt.Printf("Path: %s; ", pages.pages[i].cookies[j].path)
-				fmt.Printf("Expires: %v; ", pages.pages[i].cookies[j].expires)
-				fmt.Printf("Last Accessed: %v; ", pages.pages[i].cookies[j].lastAccessed)
-				fmt.Printf("%s\n", pages.pages[i].cookies[j].flags)
-				cookieCount += 1
-			case "list":
-				fmt.Printf("Name: %s\n", pages.pages[i].cookies[j].name)
-				fmt.Printf("Value: %s\n", pages.pages[i].cookies[j].value)
-				fmt.Printf("Domain: %s\n", pages.pages[i].cookies[j].domain)
-				fmt.Printf("Path: %s\n", pages.pages[i].cookies[j].path)
-				fmt.Printf("Expires: %v\n", pages.pages[i].cookies[j].expires)
-				fmt.Printf("Last Accessed: %v\n", pages.pages[i].cookies[j].lastAccessed)
-				fmt.Printf("Flags: %s\n\n", pages.pages[i].cookies[j].flags)
-			default:
-				fmt.Printf("This should never run\n")
-			}
-		}
+// This function takes a slice of cookies and prints them out in a table format
+func outputAsTable(cookies []cookie) {
+	for i := 0; i < len(cookies); i++ {
+		fmt.Printf("Cookie %d: %s=", i+1, cookies[i].Name)
+		fmt.Printf("%s; ", cookies[i].Value)
+		fmt.Printf("Domain: %s; ", cookies[i].Domain)
+		fmt.Printf("Path: %s; ", cookies[i].Path)
+		fmt.Printf("Expires: %v; ", cookies[i].Expires)
+		fmt.Printf("Last Accessed: %v; ", cookies[i].LastAccessed)
+		fmt.Printf("%s\n", cookies[i].Flags)
+	}
+}
+
+// This function takes a slice of cookies and prints them out in a list format
+func outputAsList(cookies []cookie) {
+	for i := 0; i < len(cookies); i++ {
+		fmt.Printf("Name: %s\n", cookies[i].Name)
+		fmt.Printf("Value: %s\n", cookies[i].Value)
+		fmt.Printf("Domain: %s\n", cookies[i].Domain)
+		fmt.Printf("Path: %s\n", cookies[i].Path)
+		fmt.Printf("Expires: %v\n", cookies[i].Expires)
+		fmt.Printf("Last Accessed: %v\n", cookies[i].LastAccessed)
+		fmt.Printf("Flags: %s\n\n", cookies[i].Flags)
+	}
+}
+
+// This function takes a slice of cookies and prints them out as a XML chunk
+func outputAsXML(cookies []cookie) {
+	type Nesting struct {
+		XMLName xml.Name `xml:"Cookies"`
+		Cookie  []cookie
+	}
+
+	nesting := &Nesting{}
+	nesting.Cookie = cookies
+
+	out, _ := xml.MarshalIndent(nesting, "", "	")
+	fmt.Println(xml.Header + string(out))
+}
+
+// This function takes a slice of cookies and prints them out as a JSON chunk
+func outputAsJSON(cookies []cookie) {
+	marshalled, _ := json.Marshal(cookies)
+	fmt.Println(string(marshalled))
+}
+
+// This method will take a slice of cookie objects and output the data in CSV format. Handy for piping into a CSV file for analysis
+func outputAsCSV(cookies []cookie) {
+	// First, create the records as a [][]string
+	var result [][]string
+	headers := []string{"name", "value", "domain", "path", "expires", "lastAccessed", "flags"}
+	result = append(result, headers)
+
+	for i := 0; i < len(cookies); i++ {
+		var row []string
+		row = append(row, cookies[i].Name)
+		row = append(row, cookies[i].Value)
+		row = append(row, cookies[i].Domain)
+		row = append(row, cookies[i].Path)
+		row = append(row, cookies[i].Expires)
+		row = append(row, cookies[i].LastAccessed)
+		row = append(row, cookies[i].Flags)
+		result = append(result, row)
+	}
+
+	w := csv.NewWriter(os.Stdout)
+
+	for _, record := range result {
+		err := w.Write(record)
+		handleError(err)
+	}
+
+	w.Flush()
+
+	if err := w.Error(); err != nil {
+		handleError(err)
 	}
 }
 
 // This function takes a pages object and will decode the cookies within the individual pages. Nothing is returned as it
 // modifies the objects the pages reference points to
-func decodeCookies(pages pages) {
+func decodeCookies(pages pages, allCookies *[]cookie) {
 	// First, loop through the pages
 	for i := 0; i < len(pages.pages); i++ {
 		// Now, loop through the cookies within each page
@@ -126,7 +194,7 @@ func decodeCookies(pages pages) {
 			// Decode size of individual cookies
 			a := pages.pages[i].cookies[j].rawBytes[:4]
 			intA := int(convertHexToUint(reverseByteSlice(a)))
-			pages.pages[i].cookies[j].size = uint64(intA)
+			pages.pages[i].cookies[j].Size = uint64(intA)
 
 			// Decode the flags of individual cookies
 			// Cookie flag decodings
@@ -148,7 +216,7 @@ func decodeCookies(pages pages) {
 			default:
 				flagText = "Unknown"
 			}
-			pages.pages[i].cookies[j].flags = flagText
+			pages.pages[i].cookies[j].Flags = flagText
 
 			// Determine offsets for the other values (needed to know where to carve values from)
 			domainOffset := convertHexToUint(reverseByteSlice(pages.pages[i].cookies[j].rawBytes[16:20])) // 4 byte field
@@ -158,16 +226,31 @@ func decodeCookies(pages pages) {
 
 			// Carve the values from the raw cookie bytes using the above offsets, and set the cookie instance variables to the carved values
 			// Each value is null terminated and variable in length, so scanUntilNullByte grabs everything from the offset until it sees 0x00
-			pages.pages[i].cookies[j].name = string(scanUntilNullByte(pages.pages[i].cookies[j].rawBytes[nameOffset:]))
-			pages.pages[i].cookies[j].value = string(scanUntilNullByte(pages.pages[i].cookies[j].rawBytes[valueOffset:]))
-			pages.pages[i].cookies[j].domain = string(scanUntilNullByte(pages.pages[i].cookies[j].rawBytes[domainOffset:]))
-			pages.pages[i].cookies[j].path = string(scanUntilNullByte(pages.pages[i].cookies[j].rawBytes[pathOffset:]))
+			pages.pages[i].cookies[j].Name = string(scanUntilNullByte(pages.pages[i].cookies[j].rawBytes[nameOffset:]))
+			pages.pages[i].cookies[j].Value = string(scanUntilNullByte(pages.pages[i].cookies[j].rawBytes[valueOffset:]))
+			pages.pages[i].cookies[j].Domain = string(scanUntilNullByte(pages.pages[i].cookies[j].rawBytes[domainOffset:]))
+			pages.pages[i].cookies[j].Path = string(scanUntilNullByte(pages.pages[i].cookies[j].rawBytes[pathOffset:]))
 
 			// Now for the timestamps. These are big-endian double precision (or float64 in Go) values of Cocoa Core Data epochs
 			expiresRaw := pages.pages[i].cookies[j].rawBytes[40:48]      // 8 byte field
 			lastAccessedRaw := pages.pages[i].cookies[j].rawBytes[48:56] // 8 byte field
-			pages.pages[i].cookies[j].expires = convertHexToCoreDataTime(expiresRaw)
-			pages.pages[i].cookies[j].lastAccessed = convertHexToCoreDataTime(lastAccessedRaw)
+			pages.pages[i].cookies[j].Expires = convertCoreDataToString(convertHexToCoreDataTime(expiresRaw))
+			pages.pages[i].cookies[j].LastAccessed = convertCoreDataToString(convertHexToCoreDataTime(lastAccessedRaw))
+
+			// Build up an cookie object and put it into the cookies slice
+			var aCookie cookie
+			aCookie.rawBytes = pages.pages[i].cookies[j].rawBytes
+			aCookie.Size = uint64(intA)
+			aCookie.Name = string(scanUntilNullByte(pages.pages[i].cookies[j].rawBytes[nameOffset:]))
+			aCookie.Value = string(scanUntilNullByte(pages.pages[i].cookies[j].rawBytes[valueOffset:]))
+			aCookie.Domain = string(scanUntilNullByte(pages.pages[i].cookies[j].rawBytes[domainOffset:]))
+			aCookie.Path = string(scanUntilNullByte(pages.pages[i].cookies[j].rawBytes[pathOffset:]))
+			aCookie.Flags = flagText
+			aCookie.Expires = convertCoreDataToString(convertHexToCoreDataTime(expiresRaw))
+			aCookie.LastAccessed = convertCoreDataToString(convertHexToCoreDataTime(lastAccessedRaw))
+
+			// Put the cookie object into the global cookies slice
+			*allCookies = append(*allCookies, aCookie)
 		}
 	}
 }
@@ -233,8 +316,7 @@ func extractPages(data []byte) pages {
 	// Need to extract each page to a new page object, then store those page objects within pages pages []page variable
 	for i := 0; i < len(pages.pageSizes); i++ {
 		var page page
-		//FIXME! THIS IS THE PROBLEM! The slice subcript is the same for BOTH instances, need to account for offsets!
-		// It is ALWAYS starting from the first byte after the header, even for the 2nd, 3rd, nth page!
+
 		if i == len(pages.pageSizes)-1 {
 			// You're at the last offset in pageSizes, so just slice to the end of data
 			page.rawBytes = data[pages.headerSize+offsetCounter:]
@@ -310,11 +392,16 @@ func convertHexToCoreDataTime(bytes []byte) time.Time {
 	return e
 }
 
+// Helper method to convert time.Time type to string type (to ease output formatting)
+func convertCoreDataToString(time time.Time) string {
+	return time.String()
+}
+
 func parseComLineFlags() {
 	flag.Parse()
 
 	if *version {
-		fmt.Println("BinaryCookieExtractor (v0.9) - @KittyNighthawk (2020)")
+		fmt.Println("BinaryCookieExtractor (v1.0) - @KittyNighthawk (2021)")
 		os.Exit(1)
 	}
 
@@ -324,9 +411,9 @@ func parseComLineFlags() {
 		os.Exit(1)
 	}
 
-	if *format != "table" && *format != "list" {
+	if *format != "table" && *format != "list" && *format != "json" && *format != "csv" && *format != "xml" {
 		if *debug {
-			fmt.Printf("[DEBUG] *format does not equal table, list, or json\n")
+			fmt.Printf("[DEBUG] *format does not equal table, list, json, csv, or xml\n")
 			fmt.Printf("[DEBUG] *format: %s\n", *format)
 		}
 		printUsageInstructions()
@@ -335,9 +422,9 @@ func parseComLineFlags() {
 }
 
 func printUsageInstructions() {
-	fmt.Println(`BinaryCookieExtractor (v0.9) - Safari/iOS/iPadOS Binary Cookie Decoder - @KittyNighthawk (2020)
+	fmt.Println(`BinaryCookieExtractor (v1.0) - Safari/iOS/iPadOS Binary Cookie Decoder - @KittyNighthawk (2021)
 
-Usage: $ ./binary-cookie-extractor -i <BINARY-COOKIE-FILE> [-f table|list|json] [-d]
+Usage: $ ./binary-cookie-extractor -i <BINARY-COOKIE-FILE> [-f table|list|json|csv|xml] [-d]
 Example: $ ./binary-cookie-extractor -i Cookies.binarycookies
 
 For help, enter: $ ./binary-cookie-extractor -h`)
