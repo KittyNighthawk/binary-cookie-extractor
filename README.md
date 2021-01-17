@@ -23,6 +23,13 @@ macOS: $ export PATH=$PATH:/usr/local/go/bin
 Linux: $ export PATH=$PATH:/home/username/go/bin
 ```
 
+By default, Go will download the source code to and build binaries in the users home directory. For example, in:
+```
+macOS: /Users/[USERNAME]/go/bin
+Linux: /home/[USERNAME]/go/bin
+Windows: C:/Users/[USERNAME]/go/bin
+```
+
 Further details on Go installation and setup can be found at https://golang.org/doc/install
 
 ## Usage
